@@ -1,10 +1,13 @@
 const { SerialPort } = require('serialport');
+const { ReadlineParser } = require('@serialport/parser-readline');
 
 const port = new SerialPort({
-  path: 'COM5', // troque conforme a porta real
+  path: 'COM5',
   baudRate: 9600,
   autoOpen: true
 });
+
+const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -21,7 +24,7 @@ async function liberarChopp(chopp, ml) {
 
       console.log('Comando enviado ao Arduino:', comando.trim());
 
-      port.once('data', data => {
+      parser.once('data', data => {
         const resposta = data.toString().trim();
         console.log('Resposta do Arduino:', resposta);
         if (resposta === 'OK') {
