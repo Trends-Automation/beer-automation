@@ -1,29 +1,71 @@
 import axios from 'axios';
 import { useState } from 'react';
 
+const tiposChopp = ['Pilsen', 'IPA', 'Stout', 'Witbier', 'Weiss']
+const volumes = [300,500,700];
 
 export default function Home() {
+    const [tipoSelecionado, setTipoSelecionado] = useState('');
+    const [volumeSelecionado, setVolumeSelecionado] = useState<number | null>(null);
     const [status, setStatus] = useState('');
 
-    const handlePagar = async() => {
-        setStatus('Processando...');
+    const handlePagamento = async()=> {
+        if(!tipoSelecionado || !volumeSelecionado) {
+            setStatus('Selecione o tipo e volume do chopp');
+            return;
+        }
+
+        setStatus('Processando pagamento...');
         try {
-            await axios.post('http://localhost:3001/dispenser/liberar');
+            await axios.post('http://localhost:3001/dispenser/liberar', {
+                tipo: tipoSelecionado,
+                ml: volumeSelecionado
+            });
             setStatus('Pagamento realizado com sucesso!');
-        } catch {
+        } catch (err) {
+            console.error(err);
             setStatus('Erro ao processar o pagamento. Tente novamente.');
         }
     };
 
-    return(
-        <div className='p-6'>
-            <h1 className='text-2xl font-bold mb-4'>Beer Automation</h1>
-            <button
-                onClick={handlePagar}
-                className='bg-green-600 text-white px-4 py-2'>
-                Pagar
-                </button>
-                <p className='mt-4'>{status}</p>
+return(
+    <div>
+        <div className="mb-6">
+            <h2 className="text-lg font-semibold mb-2">Escolha o tipo de chopp:</h2>
+            <div className="grid grid-cols-2 gap-3">
+                {tiposChopp.map(tipo => (
+                    <button
+                        key={tipo}
+                        className={`border rounded p-3 text-center text-sm font-medium transition
+                            ${tipoSelecionado === tipo ? 'bg-yellow-400 text-black' : 'bg-gray-100 hover:bg-gray-200'}`}
+                        onClick={() => setTipoSelecionado(tipo)}
+                    >
+                        {tipo}
+                    </button>
+                ))}
+            </div>
         </div>
-    );
+
+        <div className="mb-6">
+            <h2 className="text-lg font-semibold mb-2">Escolha a quantidade:</h2>
+            <div className="grid grid-cols-3 gap-3">
+                {volumes.map(ml => (
+                    <button
+                        key={ml}
+                        className={`border rounded p-3 text-center text-sm font-medium transition
+                            ${volumeSelecionado === ml ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                        onClick={() => setVolumeSelecionado(ml)}
+                    >
+                        {ml} ml
+                    </button>
+                ))}
+            </div>
+        </div>
+
+        <button className='bg-green-600 text-white px-4 py-2' onClick={handlePagamento}>
+            Pagar
+        </button>
+        <p className='mt-4'>{status}</p>
+    </div>
+);
 }
