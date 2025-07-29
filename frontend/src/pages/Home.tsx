@@ -8,6 +8,7 @@ export default function Home() {
     const [tipoSelecionado, setTipoSelecionado] = useState('');
     const [volumeSelecionado, setVolumeSelecionado] = useState<number | null>(null);
     const [status, setStatus] = useState('');
+    const [aguardandoConfirmacao, setAguardandoConfirmacao] = useState(false);
 
     const handlePagamento = async()=> {
         if(!tipoSelecionado || !volumeSelecionado) {
@@ -16,15 +17,42 @@ export default function Home() {
         }
 
         setStatus('Processando pagamento...');
+
+        const chopp = {
+            tipo: tipoSelecionado,
+            ml: volumeSelecionado,
+            valor: (volumeSelecionado / 1000 * 10).toFixed(2) // Exemplo de cálculo de valor
+        };
+
         try {
-            await axios.post('http://localhost:3001/dispenser/liberar', {
+            const response = await axios.post('http://localhost:3001/pagamento/criar-link', {
                 tipo: tipoSelecionado,
-                ml: volumeSelecionado
+                ml: volumeSelecionado,
+                valor: chopp.valor
             });
-            setStatus('Pagamento realizado com sucesso!');
+            
+            const {link} = await response.data;
+            window.open(link, '_blank');
+            setStatus('Aguardando pagamento...');
+            setAguardandoConfirmacao(true);
         } catch (err) {
             console.error(err);
             setStatus('Erro ao processar o pagamento. Tente novamente.');
+        }
+    };
+
+    const confirmarPagamento = async()=> {
+        setStatus('Liberando chopp...');
+        try {
+            const response = await axios.post('http://localhost:3001/dispenser/liberar', {
+                tipo: tipoSelecionado,
+                ml: volumeSelecionado
+            });
+            setStatus(response.data.message);
+            setAguardandoConfirmacao(false);
+        } catch(error) {
+            console.error(error);
+            setStatus('Erro ao liberar o chopp. Tente novamente.');
         }
     };
 
@@ -62,9 +90,21 @@ return(
             </div>
         </div>
 
-        <button className='bg-green-600 text-white px-4 py-2' onClick={handlePagamento}>
+        <button 
+            className='bg-green-600 text-white px-4 py-2' 
+            onClick={handlePagamento}
+            disabled={aguardandoConfirmacao}
+            >
             Pagar
         </button>
+        {aguardandoConfirmacao && (
+            <button 
+                className='mt-4 bg-yellow-400 text-white px-4 py-2'
+                onClick={confirmarPagamento}
+                >
+                Já paguei
+            </button>
+        )}
         <p className='mt-4'>{status}</p>
     </div>
 );
