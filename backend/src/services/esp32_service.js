@@ -22,7 +22,7 @@ async function liberarChopp(chopp, ml) {
         return reject(err);
       }
 
-      console.log(`Comando enviado: ${comando.trim()} | Tipo: ${tipo} | ML: ${ml}`);
+      console.log(`Comando enviado: ${comando.trim()} | Tipo: ${chopp} | ML: ${ml}`);
 
       parser.once('data', data => {
         const resposta = data.toString().trim();
