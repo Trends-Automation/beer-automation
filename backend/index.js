@@ -10,6 +10,9 @@ app.use(bodyParser.json());
 const dispenserRouter = require('./src/routes/dispenser');
 app.use('/dispenser', dispenserRouter);
 
+const pagamentoRouter = require('./src/routes/pagamento');
+app.use('/pagamento', pagamentoRouter);
+
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
