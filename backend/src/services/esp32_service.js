@@ -4,10 +4,19 @@ const { ReadlineParser } = require('@serialport/parser-readline');
 const port = new SerialPort({
   path: 'COM5',
   baudRate: 9600,
-  autoOpen: true
+  autoOpen: false
 });
 
 const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
+
+port.open(err => {
+  if(err) {
+    console.error('erro ao abrir porta serial:', err.message);
+  } else {
+    console.log('porta serial aberta com sucesso');
+    
+  }
+})
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
