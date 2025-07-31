@@ -10,7 +10,7 @@ router.post('/liberar', async(req, res)=> {
             return res.status(400).json({ error: 'Tipo e ml são obrigatórios' });
         }
         
-        await liberarChopp();
+        await liberarChopp(tipo, ml);
         res.status(200).json({ message: 'Comando enviado com sucesso' });
     } catch(err) {
         console.error('Erro ao liberar chopp:', err);

@@ -8,6 +8,9 @@ export default function Home() {
     const [tipoSelecionado, setTipoSelecionado] = useState('');
     const [volumeSelecionado, setVolumeSelecionado] = useState<number | null>(null);
     const [status, setStatus] = useState('');
+    const [aguardandoConfirmacao, setAguardandoConfirmacao] = useState(false);
+    const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
+    const [pagando, setPagando] = useState(false);
 
     const handlePagamento = async()=> {
         if(!tipoSelecionado || !volumeSelecionado) {
@@ -16,15 +19,45 @@ export default function Home() {
         }
 
         setStatus('Processando pagamento...');
+
+        const chopp = {
+            tipo: tipoSelecionado,
+            ml: volumeSelecionado,
+            valor: (volumeSelecionado / 1000 * 10).toFixed(2) // Exemplo de cálculo de valor
+        };
+
+        console.log('enviando pagamento com valor:', chopp.valor);
+
         try {
-            await axios.post('http://localhost:3001/dispenser/liberar', {
+            setPagando(true);
+            const response = await axios.post('http://localhost:3001/pagamento/pix', {
                 tipo: tipoSelecionado,
-                ml: volumeSelecionado
+                ml: volumeSelecionado,
+                valor: chopp.valor
             });
-            setStatus('Pagamento realizado com sucesso!');
+
+            const {qrCodeBase64} = response.data;
+            setQrCodeBase64(qrCodeBase64);
         } catch (err) {
             console.error(err);
             setStatus('Erro ao processar o pagamento. Tente novamente.');
+        }finally {
+            setPagando(false);
+        }
+    };
+
+    const confirmarPagamento = async()=> {
+        setStatus('Liberando chopp...');
+        try {
+            const response = await axios.post('http://localhost:3001/dispenser/liberar', {
+                tipo: tipoSelecionado,
+                ml: volumeSelecionado
+            });
+            setStatus(response.data.message);
+            setAguardandoConfirmacao(false);
+        } catch(error) {
+            console.error(error);
+            setStatus('Erro ao liberar o chopp. Tente novamente.');
         }
     };
 
@@ -62,9 +95,23 @@ return(
             </div>
         </div>
 
-        <button className='bg-green-600 text-white px-4 py-2' onClick={handlePagamento}>
-            Pagar
+        <button 
+            className='bg-green-600 text-white px-4 py-2' 
+            onClick={handlePagamento}
+            disabled={pagando}
+            >
+            {pagando ? 'Gerando QR Code...' : 'Pagar com PIX'}
         </button>
+        {qrCodeBase64 && (
+            <div className='mt-4 p-4 border bg-white text-center'>
+                <h2 className='text-lg font-semibold mb-2'>Escaneie o QR Code abaixo:</h2>
+                <img 
+                    src={`data:image/png;base64,${qrCodeBase64}`} 
+                    alt="QR Code PIX"
+                    className='mx-auto w-60 h-60' />
+                <p className='mt-2 text-sm text-gray-600'>O pagamento será identificado automaticamente</p>
+            </div>
+        )}
         <p className='mt-4'>{status}</p>
     </div>
 );
