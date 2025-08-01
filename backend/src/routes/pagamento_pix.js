@@ -18,12 +18,12 @@ router.post('/', async(req, res)=> {
 
         console.log('[VALOR NUMÉRICO PROCESSADO]', transactionAmount, 'typeof:', typeof transactionAmount);
 
-        if(!valor || isNaN(valor) || transactionAmount <= 0) {
+        if(isNaN(transactionAmount) || transactionAmount <= 0) {
             return res.status(400).json({error:'Valor inválido para pagamento'});
         }
 
         const paymentData = {
-            transaction_amount: transactionAmount,
+            transaction_amount: 0.01, // transactionAmount
             description: `Pagamento de Chopp ${tipo} ${ml}ml`,
             payment_method_id: "pix",
             payer: {
