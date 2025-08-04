@@ -10,7 +10,7 @@ const mercadopago = new MercadoPagoConfig({
 
 router.post('/', async(req, res)=> {
     try {
-        const {tipo, ml, valor} = req.body;
+        const {ml, valor} = req.body;
         console.log('[PAYLOAD RECEBIDO]', req.body);
         console.log('[VALOR PROCESSADO]', valor, 'typeof:', typeof valor);
 
@@ -24,7 +24,7 @@ router.post('/', async(req, res)=> {
 
         const paymentData = {
             transaction_amount: 0.01, // transactionAmount
-            description: `Pagamento de Chopp ${tipo} ${ml}ml`,
+            description: `Pagamento de Chopp ${ml}ml`,
             payment_method_id: "pix",
             payer: {
                 email: "cliente@email.com",
