@@ -30,13 +30,24 @@ router.post('/webhook', async (req, res) => {
       const status = pagamento.status;
       const valor = pagamento.transaction_amount;
       const metodo = pagamento.payment_method_id;
+      const description = pagamento.description;
 
       console.log(`Pagamento ${paymentId} consultado. Status: ${status} | Valor: ${valor} | Método: ${metodo}`);
 
       if (status === 'approved') {
         console.log('Pagamento confirmado! Iniciando liberação do chopp...');
 
-        await liberarChopp();
+        let volumeMl = 0;
+        const match = description.match(/(\d+)ml/);
+        if(match && match[1]) {
+          volumeMl = parseInt(match[1], 10);
+          console.log(`Volume extraído da descrição: ${volumeMl}ml`)
+        } else {
+          console.warn('Não foi possível extrair o volume da descrição. Usando volume padrão 300ml');
+          volumeMl = 300;
+        }
+
+        await liberarChopp('chopp', volumeMl);
         console.log('Chopp liberado com sucesso via webhook!');
       } else {
         console.log(`Pagamento ${paymentId} não aprovado. Status: ${status}. Nenhuma ação tomada.`);
