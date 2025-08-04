@@ -58,9 +58,9 @@ router.post('/webhook', async (req, res) => {
 //APENAS PARA TESTES
 router.post('/test-liberacao', async (req, res) => {
   try {
-    const { valor = 100, tipo = 'chopp' } = req.body;
-    console.log('Testando liberação de chopp:', tipo, 'Valor:', valor);
-    await liberarChopp(tipo, valor);
+    const { valor = 100 } = req.body;
+    console.log('Testando liberação de chopp no valor:', valor);
+    await liberarChopp(valor);
     res.status(200).json({ message: 'Chopp liberado com sucesso!' });
   } catch (err) {
     console.error('Erro ao liberar chopp:', err);
