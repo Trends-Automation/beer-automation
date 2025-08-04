@@ -22,7 +22,7 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function liberarChopp(chopp, ml) {
+async function liberarChopp(ml) {
   return new Promise((resolve, reject) => {
     const comando = 'ABRIR\n';
 
@@ -31,7 +31,7 @@ async function liberarChopp(chopp, ml) {
         return reject(err);
       }
 
-      console.log(`Comando enviado: ${comando.trim()} | Tipo: ${chopp} | ML: ${ml}`);
+      console.log(`Comando enviado: ${comando.trim()} | ML: ${ml}`);
 
       parser.once('data', data => {
         const resposta = data.toString().trim();

@@ -10,7 +10,7 @@ const mercadopago = new MercadoPagoConfig({
 
 router.post('/', async(req, res)=> {
     try {
-        const {tipo, ml, valor} = req.body;
+        const {ml, valor} = req.body;
         console.log('[PAYLOAD RECEBIDO]', req.body);
         console.log('[VALOR PROCESSADO]', valor, 'typeof:', typeof valor);
 
@@ -18,13 +18,13 @@ router.post('/', async(req, res)=> {
 
         console.log('[VALOR NUMÉRICO PROCESSADO]', transactionAmount, 'typeof:', typeof transactionAmount);
 
-        if(!valor || isNaN(valor) || transactionAmount <= 0) {
+        if(isNaN(transactionAmount) || transactionAmount <= 0) {
             return res.status(400).json({error:'Valor inválido para pagamento'});
         }
 
         const paymentData = {
-            transaction_amount: transactionAmount,
-            description: `Pagamento de Chopp ${tipo} ${ml}ml`,
+            transaction_amount: 0.01, // transactionAmount
+            description: `Pagamento de Chopp ${ml}ml`,
             payment_method_id: "pix",
             payer: {
                 email: "cliente@email.com",
