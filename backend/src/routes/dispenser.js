@@ -4,13 +4,13 @@ const { liberarChopp } = require('../services/esp32_service');
 
 router.post('/liberar', async(req, res)=> {
     try {
-        const {tipo,ml}  =req.body;
+        const {ml}  =req.body;
 
-        if(!tipo || !ml) {
-            return res.status(400).json({ error: 'Tipo e ml são obrigatórios' });
+        if(!ml) {
+            return res.status(400).json({ error: 'O valume é obrigatório' });
         }
         
-        await liberarChopp(tipo, ml);
+        await liberarChopp(ml);
         res.status(200).json({ message: 'Comando enviado com sucesso' });
     } catch(err) {
         console.error('Erro ao liberar chopp:', err);
