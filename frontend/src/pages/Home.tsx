@@ -120,7 +120,7 @@ export default function Home() {
           </div>
 
           <button
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-6 rounded-2xl disabled:bg-slate-400 disabled:cursor-not-allowed transition-all duration-300 text-xl tracking-wide shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:transform-none disabled:hover:scale-100"
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-6 rounded-2xl disabled:bg-slate-500 disabled:cursor-not-allowed transition-all duration-300 text-xl tracking-wide shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:transform-none disabled:hover:scale-100"
             onClick={handlePayment}
             disabled={isProcessing || !selectedVolume}
           >
@@ -130,7 +130,14 @@ export default function Home() {
                 Gerando PIX...
               </div>
             ) : (
-              'Pagar com PIX'
+              <div className="flex items-center justify-center gap-3">
+                <img 
+                  src="src\assets\pix.svg"
+                  alt="PIX"
+                  className='w-6 h-6' 
+                />
+                Pagar com PIX
+              </div>
             )}
           </button>
 
@@ -138,7 +145,8 @@ export default function Home() {
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-auto transform transition-all">
                 <div className="p-6 border-b border-gray-100">
-                  <div className="flex items-center">
+                  <div className="flex items-center gap-3">
+                    <img src="src\assets\pix.svg" alt="" />
                     <h3 className="text-2xl font-light text-slate-900 tracking-wide">
                       Pagamento PIX
                     </h3>
