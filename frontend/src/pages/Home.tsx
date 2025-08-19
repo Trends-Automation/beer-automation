@@ -5,21 +5,24 @@ import Header from '../components/Header';
 interface ChoppOrder {
   ml: number;
   valor: string;
+  metodo: string;
 }
 
-const API_BASE_URL = 'http://localhost:3001';
-const PRICE_PER_LITER = 10;
-
+const API_BASE_URL = 'http://localhost:3001'; // Para testes locais
+const PRICE_PER_LITER = 33.33;
 const VOLUMES = [300, 500, 700];
+const METODOS = ['pix', 'debito', 'credito'];
 
 const calculatePrice = (volumeInMl: number): string => {
   return (volumeInMl / 1000 * PRICE_PER_LITER).toFixed(2);
 };
 
 const apiService = {
-  async processPayment(order: ChoppOrder): Promise<string> {
-    const response = await axios.post(`${API_BASE_URL}/pagamento/pix`, order);
-    return response.data.qrCodeBase64;
+  async processPayment(order: ChoppOrder): Promise<{ intentId?: string; message?: string; qrCodeBase64?: string }> {
+    const endpoint = order.metodo === 'pix' ? `${API_BASE_URL}/pagamento/pix` : `${API_BASE_URL}/pagamento`;
+    console.log('Enviando para:', endpoint, order);
+    const response = await axios.post(endpoint, order);
+    return response.data;
   },
 
   async releaseChopp(ml: number): Promise<string> {
@@ -30,6 +33,7 @@ const apiService = {
 
 export default function Home() {
   const [selectedVolume, setSelectedVolume] = useState<number | null>(null);
+  const [selectedMetodo, setSelectedMetodo] = useState<string | null>(null);
   const [status, setStatus] = useState('');
   const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -39,40 +43,36 @@ export default function Home() {
       setStatus('Selecione o volume do chopp');
       return;
     }
+    if (!selectedMetodo) {
+      setStatus('Selecione o método de pagamento');
+      return;
+    }
 
-    setStatus('Processando pagamento...');
+    setStatus('Iniciando pagamento...');
     setIsProcessing(true);
 
     const order: ChoppOrder = {
       ml: selectedVolume,
-      valor: calculatePrice(selectedVolume)
+      valor: calculatePrice(selectedVolume),
+      metodo: selectedMetodo
     };
 
+    console.log('Enviando pedido para o backend:', order);
+
     try {
-      const qrCode = await apiService.processPayment(order);
-      setQrCodeBase64(qrCode);
-      setStatus('');
+      const response = await apiService.processPayment(order);
+      console.log('Resposta do backend:', response);
+      if (selectedMetodo === 'pix') {
+        setQrCodeBase64(response.qrCodeBase64 ?? null);
+        setStatus('Escaneie o QR Code para pagar');
+      } else {
+        setStatus(response.message || 'Pagamento iniciado na maquininha');
+      }
     } catch (error) {
       console.error('Erro ao processar pagamento no frontend:', error);
-      setStatus('Erro ao processar o pagamento. Tente novamente.');
+      setStatus('Erro ao iniciar pagamento. Tente novamente.');
     } finally {
       setIsProcessing(false);
-    }
-  };
-
-  const confirmPayment = async () => {
-    setStatus('Liberando chopp...');
-    try {
-      const message = await apiService.releaseChopp(selectedVolume!);
-      setStatus(message);
-      setTimeout(() => {
-        setSelectedVolume(null);
-        setQrCodeBase64(null);
-        setStatus('');
-      }, 3000);
-    } catch (error) {
-      console.error('Erro ao liberar chopp no frontend:', error);
-      setStatus('Erro ao liberar o chopp. Tente novamente.');
     }
   };
 
@@ -99,10 +99,11 @@ export default function Home() {
               {VOLUMES.map(ml => (
                 <button
                   key={ml}
-                  className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 hover:scale-105 ${selectedVolume === ml
+                  className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 hover:scale-105 ${
+                    selectedVolume === ml
                       ? 'border-slate-900 bg-slate-900 text-white shadow-xl'
                       : 'border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:shadow-lg'
-                    }`}
+                  }`}
                   onClick={() => setSelectedVolume(ml)}
                 >
                   <div className="p-8">
@@ -119,25 +120,46 @@ export default function Home() {
             </div>
           </div>
 
+          <div className="mb-12">
+            <h3 className="text-2xl font-light text-slate-900 mb-8 text-center tracking-wide">
+              Selecione o método de pagamento
+            </h3>
+            <div className="grid grid-cols-3 gap-6">
+              {METODOS.map(metodo => (
+                <button
+                  key={metodo}
+                  className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 hover:scale-105 ${
+                    selectedMetodo === metodo
+                      ? 'border-slate-900 bg-slate-900 text-white shadow-xl'
+                      : 'border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:shadow-lg'
+                  }`}
+                  onClick={() => setSelectedMetodo(metodo)}
+                >
+                  <div className="p-8">
+                    <div className="text-xl font-light mb-2 capitalize">{metodo}</div>
+                  </div>
+                  {selectedMetodo === metodo && (
+                    <div className="absolute top-4 right-4">
+                      <div className="w-3 h-3 bg-amber-400 rounded-full"></div>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button
             className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-6 rounded-2xl disabled:bg-slate-500 disabled:cursor-not-allowed transition-all duration-300 text-xl tracking-wide shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:transform-none disabled:hover:scale-100"
             onClick={handlePayment}
-            disabled={isProcessing || !selectedVolume}
+            disabled={isProcessing || !selectedVolume || !selectedMetodo}
           >
             {isProcessing ? (
               <div className="flex items-center justify-center">
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-3"></div>
-                Gerando PIX...
+                Iniciando...
               </div>
             ) : (
-              <div className="flex items-center justify-center gap-3">
-                <img 
-                  src="src\assets\pix.svg"
-                  alt="PIX"
-                  className='w-6 h-6' 
-                />
-                Pagar com PIX
-              </div>
+              'Iniciar Pagamento'
             )}
           </button>
 
@@ -146,7 +168,7 @@ export default function Home() {
               <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-auto transform transition-all">
                 <div className="p-6 border-b border-gray-100">
                   <div className="flex items-center gap-3">
-                    <img src="src\assets\pix.svg" alt="" />
+                    <img src="src/assets/pix.svg" alt="" />
                     <h3 className="text-2xl font-light text-slate-900 tracking-wide">
                       Pagamento PIX
                     </h3>
@@ -154,8 +176,11 @@ export default function Home() {
                       onClick={() => {
                         setQrCodeBase64(null);
                         setSelectedVolume(null);
+                        setSelectedMetodo(null);
                       }}
+                      className="ml-auto text-slate-600 hover:text-slate-900"
                     >
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -191,6 +216,7 @@ export default function Home() {
                       onClick={() => {
                         setQrCodeBase64(null);
                         setSelectedVolume(null);
+                        setSelectedMetodo(null);
                       }}
                       className="w-full bg-gray-100 hover:bg-gray-200 text-slate-700 font-medium py-3 rounded-xl transition-all duration-300 tracking-wide"
                     >
