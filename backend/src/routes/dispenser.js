@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { liberarChopp } = require('../services/esp32_service');
+const { liberarChopp } = require('../services/arduino_service');
 
 router.post('/liberar', async(req, res)=> {
     try {
