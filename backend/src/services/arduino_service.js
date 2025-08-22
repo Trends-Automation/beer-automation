@@ -1,44 +1,57 @@
 const { SerialPort } = require('serialport');
 const { ReadlineParser } = require('@serialport/parser-readline');
 
-const ARDUINO_PORT = 'COM5';
+const ARDUINO_PORT = process.env.NODE_ENV === 'production' ? '/dev/ttyACM0' : 'COM5'; // Para Raspberry Pi vs PC
 const BAUD_RATE = 9600;
 let port = null;
 let parser = null;
-let isOpening = false;
+let retryCount = 0;
+const MAX_RETRIES = 3;
 
 const initSerial = () => {
     return new Promise((resolve, reject) => {
         if (port && port.isOpen) {
-            console.log('Porta serial já está aberta.');
+            console.log('Porta serial já está aberta:', ARDUINO_PORT);
             return resolve();
         }
 
-        if (isOpening) {
-            console.log('A porta já está em processo de abertura.');
-            return reject(new Error('Aguardando a abertura da porta.'));
-        }
-
-        isOpening = true;
-        console.log(`Tentando abrir porta ${ARDUINO_PORT}...`);
-        port = new SerialPort({ path: ARDUINO_PORT, baudRate: BAUD_RATE });
+        console.log(`Tentando abrir porta ${ARDUINO_PORT} (tentativa ${retryCount + 1}/${MAX_RETRIES})`);
+        port = new SerialPort({ path: ARDUINO_PORT, baudRate: BAUD_RATE, autoOpen: false });
         parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
-        port.on('open', () => {
-            console.log('Porta serial aberta com sucesso.');
-            isOpening = false;
-            resolve();
+        port.open((err) => {
+            if (err) {
+                console.error('Erro ao abrir porta serial:', err.message);
+                retryCount++;
+                port = null;
+                if (retryCount < MAX_RETRIES) {
+                    console.log('Tentando novamente em 5s...');
+                    setTimeout(() => initSerial().then(resolve).catch(reject), 5000);
+                } else {
+                    console.error('Máximo de tentativas atingido. Verifique a conexão do Arduino.');
+                    reject(new Error('Falha ao abrir porta serial após tentativas'));
+                }
+            } else {
+                console.log('Porta serial aberta com sucesso:', ARDUINO_PORT);
+                retryCount = 0;
+                resolve();
+            }
         });
 
         port.on('error', (err) => {
             console.error('Erro na porta serial:', err.message);
-            isOpening = false;
-            reject(err);
+            port = null;
+            retryCount++;
+            if (retryCount < MAX_RETRIES) {
+                console.log('Tentando reconectar em 5s...');
+                setTimeout(() => initSerial().then(resolve).catch(reject), 5000);
+            }
         });
 
         port.on('close', () => {
             console.log('Porta serial fechada');
-            isOpening = false;
+            port = null;
+            retryCount = 0;
         });
     });
 };
@@ -48,40 +61,35 @@ const liberarChopp = async (ml) => {
         throw new Error('Volume inválido');
     }
 
-    try {
-        await initSerial();
-    } catch (err) {
-        throw new Error('Não foi possível conectar ao Arduino. ' + err.message);
+    await initSerial(); // Espera a porta abrir
+
+    if (!port || !port.isOpen) {
+        console.error('Porta serial não está aberta. Estado:', port ? 'fechada' : 'não inicializada');
+        throw new Error('Porta serial não está aberta');
     }
-    
+
     return new Promise((resolve, reject) => {
-        if (!port || !port.isOpen) {
-             return reject(new Error('Porta serial não está aberta.'));
-        }
-        
         const comando = `ABRIR ${ml}\n`;
         console.log(`Enviando comando: ${comando.trim()}`);
-        
-        const timeout = setTimeout(() => {
-            reject(new Error('Timeout aguardando resposta do Arduino'));
-        }, 5000);
-        
         port.write(comando, (err) => {
             if (err) {
-                clearTimeout(timeout);
                 return reject(new Error(`Erro ao enviar comando: ${err.message}`));
             }
-        });
-        
-        parser.once('data', (data) => {
-            clearTimeout(timeout);
-            const resposta = data.toString().trim();
-            console.log('Resposta do Arduino:', resposta);
-            if (resposta === 'OK') {
-                resolve('Chopp liberado com sucesso');
-            } else {
-                reject(new Error(`Resposta inválida do Arduino: ${resposta}`));
-            }
+
+            const timeout = setTimeout(() => {
+                reject(new Error('Timeout aguardando resposta do Arduino (10s)'));
+            }, 10000);
+
+            parser.on('data', (data) => {
+                clearTimeout(timeout);
+                const resposta = data.toString().trim();
+                console.log('Resposta do Arduino:', resposta);
+                if (resposta === 'OK') {
+                    resolve('Chopp liberado com sucesso');
+                } else {
+                    reject(new Error(`Resposta inválida do Arduino: ${resposta}`));
+                }
+            });
         });
     });
 };
