@@ -13,16 +13,14 @@ app.get('/', (req, res) => {
 const dispenserRouter = require('./src/routes/dispenser');
 app.use('/dispenser', dispenserRouter);
 
-/*
 const pagamentoRouter = require('./src/routes/pagamento');
 app.use('/pagamento', pagamentoRouter);
-*/
 
 const pagamentoPixRouter = require('./src/routes/pagamento_pix');
 app.use('/pagamento/pix', pagamentoPixRouter);
 
 const webhookRouter = require('./src/routes/webhook');
-app.use('/pagamento', webhookRouter);
+app.use('/webhook', webhookRouter); // Movido para /webhook
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
