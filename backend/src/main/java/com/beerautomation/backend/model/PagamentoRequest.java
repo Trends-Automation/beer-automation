@@ -1,9 +1,11 @@
 package com.beerautomation.backend.model;
 
+import java.util.List;
+
 public class PagamentoRequest {
     private String valor;
     private String metodo;
-    private String[] volumes;
+    private List<ItemRequest> items;
 
     public String getValor() {
         return valor;
@@ -21,11 +23,11 @@ public class PagamentoRequest {
         this.metodo = metodo;
     }
 
-    public String[] getVolumes() {
-        return volumes;
+    public List<ItemRequest> getItems() {
+        return items;
     }
 
-    public void setVolumes(String[] volumes) {
-        this.volumes = volumes;
+    public void setItems(List<ItemRequest> items) {
+        this.items = items;
     }
 }
