@@ -5,13 +5,8 @@ import com.beerautomation.backend.model.PagamentoResponse;
 import com.beerautomation.backend.model.WebhookRequest;
 import com.beerautomation.backend.service.ArduinoService;
 import com.beerautomation.backend.service.MercadoPagoService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 
@@ -20,23 +15,40 @@ import java.util.List;
 public class PagamentoController {
     private final MercadoPagoService mercadoPagoService;
     private final ArduinoService arduinoService;
-    private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
 
     public PagamentoController(MercadoPagoService mercadoPagoService, ArduinoService arduinoService) {
         this.mercadoPagoService = mercadoPagoService;
         this.arduinoService = arduinoService;
-        this.restTemplate = new RestTemplate();
-        this.objectMapper = new ObjectMapper();
     }
 
     @PostMapping
     public ResponseEntity<?> criarIntencao(@RequestBody PagamentoRequest request) {
         try {
-            double valor = Double.parseDouble(request.getValor());
-            String id = mercadoPagoService.criarIntencaoPagamento(valor, request.getMetodo(), request.getVolumes());
+            System.out.println("--- CRIANDO INTENÇÃO DE PAGAMENTO ---");
+            System.out.println("Método: " + request.getMetodo());
+            System.out.println("Items: " + request.getItems().size());
+
+            if(request.getItems() == null || request.getItems().isEmpty()) {
+                return ResponseEntity.badRequest().body("Erro: Lista de items não pode estar vazia");
+            }
+
+            if(request.getMetodo() == null || request.getMetodo().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Erro: Método de pagamento é obrigatório");
+            }
+            System.out.println("Verificando status da maquininha...");
+            if (!mercadoPagoService.isDeviceOnline(mercadoPagoService.getDeviceId())) {
+                System.err.println("Maquininha offline - Device ID: " + mercadoPagoService.getDeviceId());
+                return ResponseEntity.status(503).body("Erro: Maquininha não está online. Verifique a conexão.");
+            }
+
+            System.out.println("Maquininha está online, criando intenção...");
+            String id = mercadoPagoService.criarIntencaoPagamento(request.getMetodo(), request.getItems());
+            System.out.println("Intenção criada com sucesso: " + id);
             return ResponseEntity.ok(new PagamentoResponse(id, "Pagamento iniciado na maquininha"));
-        } catch (Exception e) {
+
+        } catch(Exception e) {
+            System.err.println("Erro ao criar intenção de pagamento: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(500).body("Erro: " + e.getMessage());
         }
     }
@@ -44,10 +56,9 @@ public class PagamentoController {
     @PostMapping("/pix")
     public ResponseEntity<?> criarPix(@RequestBody PagamentoRequest request) {
         try {
-            double valor = Double.parseDouble(request.getValor());
-            String qrCode = mercadoPagoService.criarPix(valor, request.getVolumes());
+            String qrCode = mercadoPagoService.criarPix(request.getItems());
             return ResponseEntity.ok(new PagamentoResponse(null, qrCode));
-        } catch (Exception e) {
+        } catch(Exception e) {
             return ResponseEntity.status(500).body("Erro: " + e.getMessage());
         }
     }
@@ -57,50 +68,49 @@ public class PagamentoController {
         try {
             System.out.println("--- WEBHOOK RECEBIDO ---");
             System.out.println("Tipo de webhook: " + request.getType());
-            boolean aprovado;
-            String description;
-            if ("payment".equals(request.getType())) {
+            System.out.println("ID: " + request.getData().getId());
+            boolean aprovado = false;
+            String description = "Chopp 300ml"; // valor padrão
+
+            if("payment".equals(request.getType())) {
+                System.out.println("Processando webhook de pagamento PIX...");
                 aprovado = mercadoPagoService.verificarPagamento(request.getData().getId());
-                // Obter descrição via API
-                HttpHeaders headers = new HttpHeaders();
-                headers.setBearerAuth(mercadoPagoService.getAccessToken());
-                HttpEntity<String> entity = new HttpEntity<>(headers);
-                ResponseEntity<String> response = restTemplate.exchange(
-                        "https://api.mercadopago.com/v1/payments/" + request.getData().getId(),
-                        HttpMethod.GET,
-                        entity,
-                        String.class
-                );
-                description = objectMapper.readTree(response.getBody()).get("description").asText();
-            } else if ("payment_intent".equals(request.getType())) {
+
+            } else if("payment_intent".equals(request.getType())) {
+                System.out.println("Processando webhook de intenção de pagamento (maquininha)...");
                 aprovado = mercadoPagoService.verificarIntencao(request.getData().getId());
-                // Obter descrição via API
-                HttpHeaders headers = new HttpHeaders();
-                headers.setBearerAuth(mercadoPagoService.getAccessToken());
-                HttpEntity<String> entity = new HttpEntity<>(headers);
-                ResponseEntity<String> response = restTemplate.exchange(
-                        "https://api.mercadopago.com/point/integration-api/payment-intents/" + request.getData().getId(),
-                        HttpMethod.GET,
-                        entity,
-                        String.class
-                );
-                description = objectMapper.readTree(response.getBody()).get("description").asText();
+
             } else {
-                return ResponseEntity.badRequest().body("Tipo de webhook inválido");
+                System.err.println("Tipo de webhook não reconhecido: " + request.getType());
+                return ResponseEntity.badRequest().body("Tipo de webhook inválido: " + request.getType());
             }
-            if (aprovado) {
-                System.out.println("Pagamento aprovado! Iniciando liberação do chopp...");
+
+            if(aprovado) {
+                System.out.println("✓ Pagamento aprovado! Iniciando liberação do chopp...");
+
+                // para teste, vou usar uma descrição padrão
+                // melhorar depois buscando a descrição da API
                 List<Integer> volumes = mercadoPagoService.extrairVolumes(description);
-                for (int ml : volumes) {
-                    String resultado = arduinoService.liberarChopp(ml);
-                    System.out.println("Liberado: " + ml + "ml - " + resultado);
+
+                for(int ml : volumes) {
+                    try {
+                        String resultado = arduinoService.liberarChopp(ml);
+                        System.out.println("✓ Liberado: " + ml + "ml - " + resultado);
+                    } catch(Exception e) {
+                        System.err.println("Erro ao liberar chopp de " + ml + "ml: " + e.getMessage());
+                    }
                 }
-                return ResponseEntity.ok("Chopp liberado: " + volumes);
+
+                return ResponseEntity.ok("Chopp liberado com sucesso: " + volumes + "ml");
+            } else {
+                System.out.println("✗ Pagamento não foi aprovado");
+                return ResponseEntity.badRequest().body("Pagamento não aprovado");
             }
-            return ResponseEntity.badRequest().body("Pagamento não aprovado");
-        } catch (Exception e) {
-            System.err.println("Erro no webhook: " + e.getMessage());
-            return ResponseEntity.status(500).body("Erro: " + e.getMessage());
+
+        } catch(Exception e) {
+            System.err.println("Erro no processamento do webhook: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Erro interno: " + e.getMessage());
         }
     }
 }
