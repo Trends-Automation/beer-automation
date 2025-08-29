@@ -28,7 +28,7 @@ public class DispenserController {
         public int getMl() {
             return ml;
         }
-        public void setml(int ml) {
+        public void setMl(int ml) {
             this.ml = ml;
         }
     }
